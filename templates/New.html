@@ -1,0 +1,36 @@
+{{define "New"}}
+    {{template "Header"}}
+    {{template "Menu"}}
+    
+    <h2>Nova Musica</h2>
+
+<form method="POST" action="/insert">
+
+        <div>
+            Nome:
+            <input type="text" name="name"> <br>
+        </div>
+        Descricao:
+        <div>
+            <input type="text" name="description"> <br>
+        </div>
+        Autor:
+        <div>
+            <input type="text" name="author"> <br>
+        </div>
+        Ano:
+        <div>
+            <input type="date" name="year"> <br>
+        </div>
+        Duracao:
+        <div>
+            <input type="text" name="duration"> <br>
+        </div>
+
+        <div>
+            <input type="submit" value="Enviar">
+        </div>
+    </form>
+
+    {{template "Footer"}}
+{{end}}

@@ -1,0 +1,41 @@
+{{ define "Index" }}
+    {{ template "Header" }}
+        {{ template "Menu" }}
+
+         <h2>Search Results</h2>
+    <ul>
+        {{range .SearchResults}}
+            <li>{{.Name}} - {{.Artist}} - {{.Album}}</li>
+        {{end}}
+    </ul>
+
+<h2>Músicas Cadastradas</h2>
+
+    <table border="1">
+    <thead>
+        <tr>
+            <td>Nome</td>
+            <td>descriptionrição</td>
+            <td>Autor</td>
+            <td>Ano</td>
+            <td>Duração</td>
+            <td>Editar</td>
+        </tr>
+        </thead>
+        <tbody>
+        {{ range . }}
+            <tr>
+                <td><a href="/show?id={{.Id}}">{{.Name}}</a></td>
+                <td>{{.Description}}</td>
+                <td>{{.Author}}</td>
+                <td>{{.Year}}</td>
+                <td>{{.Duration}}</td>
+                <td><a href="/edit?id={{.Id}}">Editar</a></td>
+                <td><a href="/delete?id={{.Id}}">Deletar</a></td>
+            </tr>
+            {{ end }}
+        </tbody>
+    </table>
+
+        {{template "Footer"}}
+{{end}}

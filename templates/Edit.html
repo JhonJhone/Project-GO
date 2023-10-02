@@ -1,0 +1,41 @@
+{{define "Edit"}}
+    {{template "Header"}}
+        {{template "Menu"}}
+    
+    <h2>Editar Musica</h2>
+
+    <form method="POST" action="/update">
+
+        <div>
+            <input type="hidden" name="id" value="{{.Id}}">
+        </div>
+
+        <div>
+            Nome:
+            <input type="text" name="name" value="{{.Name}}"> <br>
+        </div>
+        Descricao:
+        <div>
+            <input type="text" name="description" value="{{.Description}}"> <br>
+        </div>
+        Autor:
+        <div>
+            <input type="text" name="author" value="{{.Author}}"> <br>
+        </div>
+        Ano:
+        <div>
+            <input type="date" name="year" value="{{.Year}}"> <br>
+        </div>
+        Duracao:
+        <div>
+            <input type="text" name="duration" value="{{.Duration}}"> <br>
+        </div>
+
+        <div>
+            <input type="submit" value="Salvar">
+        </div>
+    </form>
+    <a href="/delete?id={{.Id}}">Deletar</a>
+
+    {{template "Footer"}}
+{{end}}

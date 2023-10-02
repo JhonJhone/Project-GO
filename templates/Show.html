@@ -1,0 +1,16 @@
+{{define "Show"}}
+    {{template "Header"}}
+        {{template "Menu"}}
+    
+<h2>{{.Name}}}</h2>
+Ano: {{.Year}}
+Duracao:{{.Duration}}
+Autor:{{.Author}}
+<br>
+Descricao:{{.Description}}
+<br>
+<a href="/edit?id={{.Id}}">Editar</a> <br>
+<a href="/delete?id={{.Id}}">Deletar</a>
+
+        {{template "Footer"}}
+{{end}}
