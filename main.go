@@ -16,7 +16,7 @@ type Users struct {
 	Name  string
 	Email string
 	Password string
-	IsAdm int `json:"is_adm" db:"is_adm" type:"tinyint"`
+	IsAdm int `json:"isadm" db:"isadm" type:"tinyint"`
 }
 
 type Songs struct {

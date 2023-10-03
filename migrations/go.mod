@@ -1,4 +1,4 @@
-module migration/migration
+module migration/migrations
 
 go 1.21.1
 
