@@ -14,8 +14,8 @@ import (
 type Users struct {
 	Id    int
 	Name  string
-	Email string
-	Password string
+	Email string 
+	Password string  `json:"password"`
 	IsAdm int `json:"isadm" db:"isadm" type:"tinyint"`
 }
 
