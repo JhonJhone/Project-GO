@@ -2,8 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"text/template"
@@ -36,16 +34,16 @@ type Rates struct {
 	Comment string
 }
 
-type SpotifySearchResponse struct {
-    Tracks struct {
-        Items []struct {
-            Name     string `json:"name"`
-            Artist   string `json:"artist"`
-            Album    string `json:"album"`
-            // Add more fields as needed
-        } `json:"items"`
-    } `json:"tracks"`
-}
+// type SpotifySearchResponse struct {
+//     Tracks struct {
+//         Items []struct {
+//             Name     string `json:"name"`
+//             Artist   string `json:"artist"`
+//             Album    string `json:"album"`
+//             // Add more fields as needed
+//         } `json:"items"`
+//     } `json:"tracks"`
+// }
 
 func dbConn() (db *sql.DB) {
 	dbDriver := "mysql"
@@ -61,56 +59,56 @@ func dbConn() (db *sql.DB) {
 
 }
 
-func ConnAPI(r *http.Request, w http.ResponseWriter) {
-    accessToken := "11dFghVXANMlKmJXsNCbNl"
-	if r.Method == "POST" {
-        // Retrieve form values from the HTTP request.
-        search := r.FormValue("search")
+// func ConnAPI(r *http.Request, w http.ResponseWriter) {
+//     accessToken := "11dFghVXANMlKmJXsNCbNl"
+// 	if r.Method == "POST" {
+//         // Retrieve form values from the HTTP request.
+//         search := r.FormValue("search")
 
-        // Construct the Spotify API request.
-        apiUrl := "https://api.spotify.com/v1/search"
-        searchType := "track"
+//         // Construct the Spotify API request.
+//         apiUrl := "https://api.spotify.com/v1/search"
+//         searchType := "track"
 
-        // Create a request with the access token and query parameters.
-        req, err := http.NewRequest("GET", apiUrl, nil)
-        if err != nil {
-            fmt.Println("Error creating request:", err)
-            return
-        }
+//         // Create a request with the access token and query parameters.
+//         req, err := http.NewRequest("GET", apiUrl, nil)
+//         if err != nil {
+//             fmt.Println("Error creating request:", err)
+//             return
+//         }
 
-        req.Header.Add("Authorization", "Bearer "+accessToken)
-        q := req.URL.Query()
-        q.Add("q", search)
-        q.Add("type", searchType)
-        req.URL.RawQuery = q.Encode()
+//         req.Header.Add("Authorization", "Bearer "+accessToken)
+//         q := req.URL.Query()
+//         q.Add("q", search)
+//         q.Add("type", searchType)
+//         req.URL.RawQuery = q.Encode()
 
-        // Make the GET request.
-        client := &http.Client{}
-        resp, err := client.Do(req)
-        if err != nil {
-            fmt.Println("Error making request:", err)
-            return
-        }
-        defer resp.Body.Close()
+//         // Make the GET request.
+//         client := &http.Client{}
+//         resp, err := client.Do(req)
+//         if err != nil {
+//             fmt.Println("Error making request:", err)
+//             return
+//         }
+//         defer resp.Body.Close()
 
-        // Read and handle the response.
-        if resp.StatusCode == http.StatusOK {
-            var spotifyResponse SpotifySearchResponse
-            decoder := json.NewDecoder(resp.Body)
-            err := decoder.Decode(&spotifyResponse)
-            if err != nil {
-                fmt.Println("Error decoding JSON response:", err)
-                return
-            }
+//         // Read and handle the response.
+//         if resp.StatusCode == http.StatusOK {
+//             var spotifyResponse SpotifySearchResponse
+//             decoder := json.NewDecoder(resp.Body)
+//             err := decoder.Decode(&spotifyResponse)
+//             if err != nil {
+//                 fmt.Println("Error decoding JSON response:", err)
+//                 return
+//             }
 
-            // Process the Spotify search results (e.g., display them in your template).
-            // Access them as spotifyResponse.Tracks.Items
-        } else {
-            fmt.Println("Error:", resp.Status)
-        }
-        // Redirect or render the search results in your template.
-    }
-}
+//             // Process the Spotify search results (e.g., display them in your template).
+//             // Access them as spotifyResponse.Tracks.Items
+//         } else {
+//             fmt.Println("Error:", resp.Status)
+//         }
+//         // Redirect or render the search results in your template.
+//     }
+// }
 
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -364,7 +362,7 @@ func main() {
 	log.Println("Server started on: http://localhost:9000")
 
 	http.HandleFunc("/", Index)
-	http.HandleFunc("/search", Index)
+	// http.HandleFunc("/search", Index)
 	http.HandleFunc("/show", Show)
 	http.HandleFunc("/new", New)
 	http.HandleFunc("/edit", Edit)
@@ -376,7 +374,5 @@ func main() {
 
 	http.ListenAndServe(":9000", nil)
 }
-
-
 
 var database = template.Must(template.ParseGlob("templates/*.html"))
