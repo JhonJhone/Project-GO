@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Proj-GO/models"
 	"database/sql"
 	"log"
 	"net/http"
@@ -8,31 +9,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 )
-
-type Users struct {
-	Id    int
-	Name  string
-	Email string 
-	Password string  `json:"password"`
-	IsAdm int `json:"isadm" db:"isadm" type:"tinyint"`
-}
-
-type Songs struct {
-	Id    int
-	Name  string
-	Description string
-	Author string
-	Year string
-	Duration string
-}
-
-type Rates struct {
-	Id    int
-	Songs_Id  int
-	Users_Id int
-	Rate string
-	Comment string
-}
 
 // type SpotifySearchResponse struct {
 //     Tracks struct {
@@ -112,94 +88,83 @@ func dbConn() (db *sql.DB) {
 
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	// Abre a conexão com o banco de dados utilizando a função dbConn()
-	db := dbConn()
-	// Realiza a consulta com banco de dados e trata erros
-	selDB, err := db.Query("SELECT * FROM songs ORDER BY id DESC")
-	if err != nil {
-		panic(err.Error())
-	}
+    // Abre a conexão com o banco de dados utilizando a função dbConn()
+    db := dbConn()
 
-	// Monta a struct para ser utilizada no template
-	s := Songs{}
+    // Create a slice to hold the songs retrieved from the database.
+    var songs []models.Songs
 
-	// Monta um array para guardar os valores da struct
-	song := []Songs{}
+    // Query the database to retrieve songs.
+    selDB, err := db.Query("SELECT * FROM songs ORDER BY id DESC")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer selDB.Close()
 
-	// Realiza a estrutura de repetição pegando todos os valores do banco
-	for selDB.Next() {
-		// Armazena os valores em variáveis
-		var id int
-		var name, description, author, year, duration string
+    // Iterate through the query results and populate the 'songs' slice.
+    for selDB.Next() {
+        var song models.Songs
+        err := selDB.Scan(&song.Id, &song.Name, &song.Description, &song.Author, &song.Year, &song.Duration)
+        if err != nil {
+            log.Fatal(err)
+        }
+        songs = append(songs, song)
+    }
 
-		// Faz o Scan do SELECT
-		err = selDB.Scan(&id, &name, &description, &author, &year, &duration)
-		if err != nil {
-			panic(err.Error())
-		}
+    // Abre a página Index e exibe todos os registrados na tela
+    database.ExecuteTemplate(w, "Index", songs)
 
-		// Envia os resultados para a struct
-		s.Id = id
-		s.Name = name
-		s.Description = description
-		s.Author = author
-		s.Year = year
-		s.Duration = duration
-
-		// Junta a Struct com Array
-		song = append(song, s)
-	}
-
-	// Abre a página Index e exibe todos os registrados na tela
-	database.ExecuteTemplate(w, "Index", song)
-
-	// Fecha a conexão
-	defer db.Close()
+    // Fecha a conexão
+    defer db.Close()
 }
 
 func Show(w http.ResponseWriter, r *http.Request) {
-	db := dbConn()
+    db := dbConn()
 
-	// Pega o ID do parametro da URL
-	nId := r.URL.Query().Get("id")
+    // Get the ID from the URL parameter
+    nId := r.URL.Query().Get("id")
 
-	// Usa o ID para fazer a consulta e tratar erros
-	selDB, err := db.Query("SELECT * FROM songs WHERE id=?", nId)
-	if err != nil {
-		panic(err.Error())
-	}
+    // Use the ID to query the database and handle errors
+    selDB, err := db.Query("SELECT * FROM songs WHERE id=?", nId)
+    if err != nil {
+        panic(err.Error())
+    }
+    defer selDB.Close()
 
-	// Monta a strcut para ser utilizada no template
-	s := Songs{}
+    // Initialize a pointer to a Songs struct
+    s := &models.Songs{}
 
-	// Realiza a estrutura de repetição pegando todos os valores do banco
-	for selDB.Next() {
-		// Armazena os valores em variáveis
-		var id int
-		var name, description, author, year, duration string
+    // Check if there is a result (one row) and scan it
+    if selDB.Next() {
+        var id int
+        var name, description, author, year, duration string
 
-		// Faz o Scan do SELECT
-		err = selDB.Scan(&id, &name, &description, &author, &year, &duration)
-		if err != nil {
-			panic(err.Error())
-		}
+        // Scan the result into the s struct
+        err = selDB.Scan(&id, &name, &description, &author, &year, &duration)
+        if err != nil {
+            panic(err.Error())
+        }
 
-		// Envia os resultados para a struct
-		s.Id = id
-		s.Name = name
-		s.Description = description
-		s.Author = author
-		s.Year = year
-		s.Duration = duration
-	}
+        // Populate the s struct with the result
+        s.Id = id
+        s.Name = name
+        s.Description = description
+        s.Author = author
+        s.Year = year
+        s.Duration = duration
+    } else {
+        // Handle the case where no record with the given ID was found
+        http.NotFound(w, r)
+        return
+    }
 
-	// Mostra o template
-	database.ExecuteTemplate(w, "Show", s)
+    // Render the template with the s struct
+    database.ExecuteTemplate(w, "Show", s)
 
-	// Fecha a conexão
-	defer db.Close()
-
+    // Close the database connection
+    defer db.Close()
 }
+
 
 // Função New apenas exibe o formulário para inserir novos dados
 func New(w http.ResponseWriter, r *http.Request) {
@@ -208,47 +173,53 @@ func New(w http.ResponseWriter, r *http.Request) {
 
 // Função Edit, edita os dados
 func Edit(w http.ResponseWriter, r *http.Request) {
-	// Abre a conexão com banco de dados
+	// Open a database connection
 	db := dbConn()
 
-	// Pega o ID do parametro da URL
+	// Get the ID from the URL parameter
 	nId := r.URL.Query().Get("id")
 
+	// Query the database to retrieve the song with the given ID
 	selDB, err := db.Query("SELECT * FROM songs WHERE id=?", nId)
 	if err != nil {
 		panic(err.Error())
 	}
+	defer selDB.Close()
 
-	// Monta a struct para ser utilizada no template
-	s := Songs{}
+	// Initialize a pointer to a Songs struct
+	s := &models.Songs{}
 
-	// Realiza a estrutura de repetição pegando todos os valores do banco
-	for selDB.Next() {
-		// Armazena os valores em variáveis
+	// Check if there is a result (one row) and scan it
+	if selDB.Next() {
 		var id int
 		var name, description, author, year, duration string
 
-		// Faz o Scan do SELECT
+		// Scan the result into the s struct
 		err = selDB.Scan(&id, &name, &description, &author, &year, &duration)
 		if err != nil {
 			panic(err.Error())
 		}
 
-		// Envia os resultados para a struct
+		// Populate the s struct with the result
 		s.Id = id
 		s.Name = name
 		s.Description = description
 		s.Author = author
 		s.Year = year
 		s.Duration = duration
+	} else {
+		// Handle the case where no record with the given ID was found
+		http.NotFound(w, r)
+		return
 	}
 
-	// Mostra o template com formulário preenchido para edição
+	// Render the template "Edit" with the s struct
 	database.ExecuteTemplate(w, "Edit", s)
 
-	// Fecha a conexão com o banco de dados
+	// Close the database connection
 	defer db.Close()
 }
+
 
 func Insert(w http.ResponseWriter, r *http.Request) {
 	// Open a connection to the database using the dbConn() function.
