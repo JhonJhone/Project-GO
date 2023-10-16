@@ -1,13 +1,17 @@
 package main
 
 import (
-	"Proj-GO/models"
-	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"text/template"
 
-	_ "github.com/go-sql-driver/mysql"
+	"Proj-GO/models"
+
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/joho/godotenv"
 )
 
 // type SpotifySearchResponse struct {
@@ -21,19 +25,36 @@ import (
 //     } `json:"tracks"`
 // }
 
-func dbConn() (db *sql.DB) {
-	dbDriver := "mysql"
-	dbUser := "root"
-	dbPass := ""
-	dbName := "melodymeter"
+func ConnectDB() (*gorm.DB, error) {
+    // Load environment variables from the .env file
+    err := godotenv.Load()
+    if err != nil {
+        return nil, err
+    }
 
-	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@/"+dbName)
-	if err != nil {
-		panic(err.Error())
-	}
-	return db
+    // Get the environment variables
+    dbUser := os.Getenv("root")
+    dbHost := os.Getenv("localhost")
+    dbPort := os.Getenv("3306")
+    dbName := os.Getenv("melodymeter")
 
+    // Define the DB connection string for MySQL
+    dsn := fmt.Sprintf("%s:@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local", dbUser, dbHost, dbPort, dbName)
+    // Initialize the MySQL database connection
+    db, err := gorm.Open("mysql", dsn)
+    if err != nil {
+        return nil, err
+    }
+
+    // Do not defer db.Close() here; it should be managed outside this function.
+
+    // Migrate the schema (automatically create tables if they don't exist)
+    db.AutoMigrate(&models.Users{})
+
+    return db, nil
 }
+
+
 
 // func ConnAPI(r *http.Request, w http.ResponseWriter) {
 //     accessToken := "11dFghVXANMlKmJXsNCbNl"
@@ -88,82 +109,60 @@ func dbConn() (db *sql.DB) {
 
 
 func Index(w http.ResponseWriter, r *http.Request) {
-    // Abre a conexão com o banco de dados utilizando a função dbConn()
-    db := dbConn()
-
-    // Create a slice to hold the songs retrieved from the database.
+    // Open a connection to the database using GORM
+    db, err := ConnectDB()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+        return
+    }
+    
+    // Create a slice to hold the songs retrieved from the database
     var songs []models.Songs
 
-    // Query the database to retrieve songs.
-    selDB, err := db.Query("SELECT * FROM songs ORDER BY id DESC")
-    if err != nil {
+    // Use GORM's Find method to retrieve songs from the database
+    if err := db.Find(&songs).Error; err != nil {
         log.Fatal(err)
     }
-    defer selDB.Close()
 
-    // Iterate through the query results and populate the 'songs' slice.
-    for selDB.Next() {
-        var song models.Songs
-        err := selDB.Scan(&song.Id, &song.Name, &song.Description, &song.Author, &song.Year, &song.Duration)
-        if err != nil {
-            log.Fatal(err)
-        }
-        songs = append(songs, song)
-    }
+    // Close the connection to the database
+    db.Close()
 
-    // Abre a página Index e exibe todos os registrados na tela
+    // Render the "Index" template with the retrieved songs
     database.ExecuteTemplate(w, "Index", songs)
-
-    // Fecha a conexão
-    defer db.Close()
 }
 
-func Show(w http.ResponseWriter, r *http.Request) {
-    db := dbConn()
 
+func Show(w http.ResponseWriter, r *http.Request) {
+    db, err := ConnectDB()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+        return
+    }
+    
     // Get the ID from the URL parameter
     nId := r.URL.Query().Get("id")
-
-    // Use the ID to query the database and handle errors
-    selDB, err := db.Query("SELECT * FROM songs WHERE id=?", nId)
-    if err != nil {
-        panic(err.Error())
-    }
-    defer selDB.Close()
 
     // Initialize a pointer to a Songs struct
     s := &models.Songs{}
 
-    // Check if there is a result (one row) and scan it
-    if selDB.Next() {
-        var id int
-        var name, description, author, year, duration string
-
-        // Scan the result into the s struct
-        err = selDB.Scan(&id, &name, &description, &author, &year, &duration)
-        if err != nil {
-            panic(err.Error())
+    // Use GORM's First method to find the song with the given ID
+    if err := db.First(s, nId).Error; err != nil {
+        if gorm.IsRecordNotFoundError(err) {
+            // Handle the case where no record with the given ID was found
+            http.NotFound(w, r)
+        } else {
+            // Handle other database-related errors
+            log.Fatal(err)
         }
-
-        // Populate the s struct with the result
-        s.Id = id
-        s.Name = name
-        s.Description = description
-        s.Author = author
-        s.Year = year
-        s.Duration = duration
-    } else {
-        // Handle the case where no record with the given ID was found
-        http.NotFound(w, r)
-        return
     }
 
     // Render the template with the s struct
     database.ExecuteTemplate(w, "Show", s)
 
     // Close the database connection
-    defer db.Close()
+    db.Close()
 }
+
 
 
 // Função New apenas exibe o formulário para inserir novos dados
@@ -173,160 +172,162 @@ func New(w http.ResponseWriter, r *http.Request) {
 
 // Função Edit, edita os dados
 func Edit(w http.ResponseWriter, r *http.Request) {
-	// Open a database connection
-	db := dbConn()
+    db, err := ConnectDB()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+        return
+    }
+    
+    // Get the ID from the URL parameter
+    nId := r.URL.Query().Get("id")
 
-	// Get the ID from the URL parameter
-	nId := r.URL.Query().Get("id")
+    // Initialize a pointer to a Songs struct
+    s := &models.Songs{}
 
-	// Query the database to retrieve the song with the given ID
-	selDB, err := db.Query("SELECT * FROM songs WHERE id=?", nId)
-	if err != nil {
-		panic(err.Error())
-	}
-	defer selDB.Close()
+    // Use GORM's First method to find the song with the given ID
+    if err := db.First(s, nId).Error; err != nil {
+        if gorm.IsRecordNotFoundError(err) {
+            // Handle the case where no record with the given ID was found
+            http.NotFound(w, r)
+            db.Close()
+            return
+        } else {
+            // Handle other database-related errors
+            log.Fatal(err)
+        }
+    }
 
-	// Initialize a pointer to a Songs struct
-	s := &models.Songs{}
+    // Render the template "Edit" with the s struct
+    database.ExecuteTemplate(w, "Edit", s)
 
-	// Check if there is a result (one row) and scan it
-	if selDB.Next() {
-		var id int
-		var name, description, author, year, duration string
-
-		// Scan the result into the s struct
-		err = selDB.Scan(&id, &name, &description, &author, &year, &duration)
-		if err != nil {
-			panic(err.Error())
-		}
-
-		// Populate the s struct with the result
-		s.Id = id
-		s.Name = name
-		s.Description = description
-		s.Author = author
-		s.Year = year
-		s.Duration = duration
-	} else {
-		// Handle the case where no record with the given ID was found
-		http.NotFound(w, r)
-		return
-	}
-
-	// Render the template "Edit" with the s struct
-	database.ExecuteTemplate(w, "Edit", s)
-
-	// Close the database connection
-	defer db.Close()
+    // Close the database connection
+    db.Close()
 }
+
 
 
 func Insert(w http.ResponseWriter, r *http.Request) {
-	// Open a connection to the database using the dbConn() function.
-	db := dbConn()
+    // Open a connection to the database using the dbConn() function.
+    db, err := ConnectDB()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+        return
+    }
+    
+    if r.Method == "POST" {
+        // Retrieve form values from the HTTP request.
+        name := r.FormValue("name")
+        description := r.FormValue("description")
+        author := r.FormValue("author")
+        year := r.FormValue("year")
+        duration := r.FormValue("duration")
 
-	// Check if the HTTP request method is "POST."
-	if r.Method == "POST" {
-		// Retrieve form values from the HTTP request.
-		name := r.FormValue("name")
-		description := r.FormValue("description")
-		author := r.FormValue("author")
-		year := r.FormValue("year")
-		duration := r.FormValue("duration")
+        // Create a new Songs struct with the form values.
+        song := models.Songs{
+            Name:        name,
+            Description: description,
+            Author:      author,
+            Year:        year,
+            Duration:    duration,
+        }
 
-		// Prepare an SQL statement for inserting data into the "songs" table.
-		insForm, err := db.Prepare("INSERT INTO songs(name, description, author, year, duration) VALUES(?,?,?,?,?)")
-		if err != nil {
-			// Handle the error (e.g., log it and return an error response).
-			log.Println("Error preparing SQL statement:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+        // Use GORM to create a new record in the "songs" table.
+        if err := db.Create(&song).Error; err != nil {
+            // Handle the error (e.g., log it and return an error response).
+            log.Println("Error creating record:", err)
+            http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+            return
+        }
 
-		// Execute the prepared statement to insert the data into the table.
-		_, err = insForm.Exec(name, description, author, year, duration)
-		if err != nil {
-			// Handle the error (e.g., log it and return an error response).
-			log.Println("Error executing SQL statement:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+        // Log a success message to the console.
+        log.Println("Valores inseridos com sucesso!")
+    }
 
-		// Log a success message to the console.
-		log.Println("Valores inseridos com sucesso!")
-	}
+    // Close the database connection.
+    db.Close()
 
-	// Close the database connection.
-	defer db.Close()
-
-	// Redirect the user to the home page ("/").
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+    // Redirect the user to the home page ("/").
+    http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
+
 
 
 // Função Update, atualiza valores no banco de dados
 func Update(w http.ResponseWriter, r *http.Request) {
+    // Abre a conexão com o banco de dados usando a função: ConnectDB()
+    db, err := ConnectDB()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+        return
+    }
+    
+    // Verifica o METHOD do formulário passado
+    if r.Method == "POST" {
+        // Pega os campos do formulário
+        name := r.FormValue("name")
+        description := r.FormValue("description")
+        author := r.FormValue("author")
+        year := r.FormValue("year")
+        duration := r.FormValue("duration")
+        id := r.FormValue("id")
 
-	// Abre a conexão com o banco de dados usando a função: dbConn()
-	db := dbConn()
+        // Create a Songs struct with the updated values
+        updatedSong := models.Songs{
+            Name:        name,
+            Description: description,
+            Author:      author,
+            Year:        year,
+            Duration:    duration,
+        }
 
-	// Verifica o METHOD do formulário passado
-	if r.Method == "POST" {
+        // Use GORM to update the record in the "songs" table with the provided ID
+        if err := db.Model(&models.Songs{}).Where("id = ?", id).Updates(updatedSong).Error; err != nil {
+            // Handle the error (e.g., log it and return an error response).
+            log.Println("Error updating record:", err)
+            http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+            return
+        }
 
-		// Pega os campos do formulário
-		name := r.FormValue("name")
-		description := r.FormValue("description")
-		author := r.FormValue("author")
-		year := r.FormValue("year")
-		duration := r.FormValue("duration")
-		id := r.FormValue("id")
+        // Exibe um log com os valores digitados no formulário
+        log.Println("Valores atualizados com sucesso!")
+    }
 
-		// Prepara a SQL e verifica errors
-		insForm, err := db.Prepare("UPDATE songs SET name=?, description=?, author=?, year=?, duration=? WHERE songs.id=?")
-		if err != nil {
-			panic(err.Error())
-		}
+    // Encerra a conexão do ConnectDB()
+    db.Close()
 
-		// Insere valores do formulário com a SQL tratada e verifica erros
-		insForm.Exec(name, description, author, year, duration, id)
-
-		// Exibe um log com os valores digitados no formulario
-		log.Println("Valores atualizados com sucesso!")
-	}
-
-	// Encerra a conexão do dbConn()
-	defer db.Close()
-
-	// Retorna a HOME
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+    // Retorna a HOME
+    http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
 
 // Função Delete, deleta valores no banco de dados
 func Delete(w http.ResponseWriter, r *http.Request) {
+    // Abre conexão com banco de dados usando a função: ConnectDB()
+    db, err := ConnectDB()
+    if err != nil {
+        log.Fatalf("Failed to connect to the database: %v", err)
+        return
+    }
+    
+    nId := r.URL.Query().Get("id")
 
-	// Abre conexão com banco de dados usando a função: dbConn()
-	db := dbConn()
+    // Use GORM to delete the record from the "songs" table based on the provided ID
+    if err := db.Where("id = ?", nId).Delete(&models.Songs{}).Error; err != nil {
+        // Handle the error (e.g., log it and return an error response).
+        log.Println("Error deleting record:", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
 
-	nId := r.URL.Query().Get("id")
+    // Exibe um log indicando que o registro foi deletado com sucesso
+    log.Println("Valor deletado com sucesso")
 
-	// Prepara a SQL e verifica errors
-	delForm, err := db.Prepare("DELETE FROM songs WHERE id=?")
-	if err != nil {
-		panic(err.Error())
-	}
+    // Encerra a conexão do ConnectDB()
+    db.Close()
 
-	// Insere valores do form com a SQL tratada e verifica errors
-	delForm.Exec(nId)
-
-	// Exibe um log com os valores digitados no form
-	log.Println("Valor deletado com sucesso")
-
-	// Encerra a conexão do dbConn()
-	defer db.Close()
-
-	// Retorna a HOME
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+    // Retorna a HOME
+    http.Redirect(w, r, "/", http.StatusMovedPermanently)
 }
+
 
 func main() {
 

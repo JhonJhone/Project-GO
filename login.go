@@ -9,7 +9,7 @@ import (
 
 
 func Register(r *http.Request, w http.ResponseWriter) {
-	db := dbConn()
+
 }
 
 func Login(r *http.Request, w http.ResponseWriter) {
