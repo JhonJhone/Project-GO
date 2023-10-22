@@ -1,15 +1,15 @@
 package models
 
 import (
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 type Songs struct {
 	gorm.Model
 
-	Id    int `json:"id"`
+	Id    uint `gorm:"primaryKey"`
 	Name  string `json:"name"`
-	Description string `json:"desciption"`
+	Description string `json:"description"`
 	Author string `json:"author"`
 	Year string `json:"year"`
 	Duration string `json:"duration"`

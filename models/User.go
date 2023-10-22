@@ -1,15 +1,16 @@
 package models
 
 import (
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 type Users struct {
 	gorm.Model
 	
-	Id    int    `json:"id"`
+	Id    uint    `gorm:"primaryKey"`
 	Name  string `json:"name"`
-	Email string `json:"email"`
+	Email *string `json:"email"`
 	Password string  `json:"password"`
 	IsAdm int `json:"isadm" db:"isadm" type:"tinyint"`
+
 }

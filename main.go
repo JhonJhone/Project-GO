@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"text/template"
 
 	"Proj-GO/models"
@@ -33,14 +31,14 @@ func ConnectDB() (*gorm.DB, error) {
     }
 
     // Get the environment variables
-    dbUser := os.Getenv("root")
-    dbHost := os.Getenv("localhost")
-    dbPort := os.Getenv("3306")
-    dbName := os.Getenv("melodymeter")
+    // user := os.Getenv("root")
+    // password := os.Getenv("")
+    // hostname := os.Getenv("localhost")
+    // port := os.Getenv("3306")
+    // dbname := os.Getenv("melodymeter")
 
     // Define the DB connection string for MySQL
-    dsn := fmt.Sprintf("%s:@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local", dbUser, dbHost, dbPort, dbName)
-    // Initialize the MySQL database connection
+    dsn := "root:@tcp(127.0.0.1:3306)/melodymeter?charset=utf8mb4&parseTime=True&loc=Local"    // Initialize the MySQL database connection
     db, err := gorm.Open("mysql", dsn)
     if err != nil {
         return nil, err
@@ -115,21 +113,21 @@ func Index(w http.ResponseWriter, r *http.Request) {
         log.Fatalf("Failed to connect to the database: %v", err)
         return
     }
-    
+    defer db.Close() // Ensure the database connection is closed when the function exits.
+
     // Create a slice to hold the songs retrieved from the database
     var songs []models.Songs
 
     // Use GORM's Find method to retrieve songs from the database
     if err := db.Find(&songs).Error; err != nil {
         log.Fatal(err)
+        return // You should handle the error here and return if an error occurs.
     }
-
-    // Close the connection to the database
-    db.Close()
 
     // Render the "Index" template with the retrieved songs
     database.ExecuteTemplate(w, "Index", songs)
 }
+
 
 
 func Show(w http.ResponseWriter, r *http.Request) {
