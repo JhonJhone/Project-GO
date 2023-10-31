@@ -12,5 +12,4 @@ type Users struct {
 	Email *string `json:"email"`
 	Password string  `json:"password"`
 	IsAdm int `json:"isadm" db:"isadm" type:"tinyint"`
-
 }

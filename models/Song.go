@@ -13,4 +13,6 @@ type Songs struct {
 	Author string `json:"author"`
 	Year string `json:"year"`
 	Duration string `json:"duration"`
+	Albuns_id int
+	Albuns Albuns `gorm:"foreignKey:Albuns_id"`
 }
