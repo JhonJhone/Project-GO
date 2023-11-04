@@ -9,10 +9,10 @@ import (
 
 
 func Register(r *http.Request, w http.ResponseWriter) {
-	database.ExecuteTemplate(w, "New", nil)
+	database.ExecuteTemplate(w, "Register", nil)
 }
 
-func Insert(w http.ResponseWriter, r *http.Request) {
+func InsertUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
