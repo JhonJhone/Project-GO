@@ -7,7 +7,6 @@ import (
 type Rates struct {
 	gorm.Model
 
-	Id    uint `gorm:"primaryKey"`
 	Rate string `json:"rate"`
 	Comment string `json:"comment"`
 	Songs_Id  int

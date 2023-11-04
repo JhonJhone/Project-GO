@@ -2,124 +2,99 @@ package controllers
 
 import (
 	"log"
-	"net/http"
-	"text/template"
+
+	"github.com/gofiber/fiber"
+	"github.com/jinzhu/gorm"
 
 	"Proj-GO/database"
 	"Proj-GO/models"
-
-	"github.com/jinzhu/gorm"
 )
 
-func Index(w http.ResponseWriter, r *http.Request) {
-    // Open a connection to the database using GORM
+func Index(c *fiber.Ctx) {
     db, err := database.ConnectDB()
     if err != nil {
         log.Fatalf("Failed to connect to the database: %v", err)
         return
     }
-    defer db.Close() // Ensure the database connection is closed when the function exits.
+    defer db.Close()
 
-    // Create a slice to hold the songs retrieved from the database
     var songs []models.Songs
-
-    // Use GORM's Find method to retrieve songs from the database
     if err := db.Find(&songs).Error; err != nil {
         log.Fatal(err)
-        return // You should handle the error here and return if an error occurs.
+        return
     }
 
-    // Render the "Index" template with the retrieved songs
-    tmpl.ExecuteTemplate(w, "Index", songs)
+    c.Render("Index", fiber.Map{
+        "Songs": songs,
+    })
 }
 
-func Show(w http.ResponseWriter, r *http.Request) {
+func Show(c *fiber.Ctx) {
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return
 	}
 
-	// Get the ID from the URL parameter
-	nId := r.URL.Query().Get("id")
+	nId := c.Query("id")
 
-	// Initialize a pointer to a Songs struct
 	s := &models.Songs{}
-
-	// Use GORM's First method to find the song with the given ID
 	if err := db.First(s, nId).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
-			// Handle the case where no record with the given ID was found
-			http.NotFound(w, r)
+			c.Status(fiber.StatusNotFound).Send("Not Found")
 		} else {
-			// Handle other database-related errors
 			log.Fatal(err)
+			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
 		}
 	}
 
-	// Render the template with the s struct
-	tmpl.ExecuteTemplate(w, "Show", s)
-
-	// Close the database connection
+	c.Render("Show", s)
 	db.Close()
 }
 
-// Função New apenas exibe o formulário para inserir novos dados
-func New(w http.ResponseWriter, r *http.Request) {
-	tmpl.ExecuteTemplate(w, "New", nil)
+func New(c *fiber.Ctx) {
+	c.Render("New", nil)
 }
 
-// Função Edit, edita os dados
-func Edit(w http.ResponseWriter, r *http.Request) {
+func Edit(c *fiber.Ctx) {
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return
 	}
 
-	// Get the ID from the URL parameter
-	nId := r.URL.Query().Get("id")
+	nId := c.Query("id")
 
-	// Initialize a pointer to a Songs struct
 	s := &models.Songs{}
-
-	// Use GORM's First method to find the song with the given ID
 	if err := db.First(s, nId).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
-			// Handle the case where no record with the given ID was found
-			http.NotFound(w, r)
+			c.Status(fiber.StatusNotFound).Send("Not Found")
 			db.Close()
 			return
 		} else {
-			// Handle other database-related errors
 			log.Fatal(err)
+			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
 		}
 	}
 
-	// Render the template "Edit" with the s struct
-	tmpl.ExecuteTemplate(w, "Edit", s)
-
-	// Close the database connection
+	c.Render("Edit", s)
 	db.Close()
 }
 
-func Insert(w http.ResponseWriter, r *http.Request) {
-	// Open a connection to the database using the dbConn() function.
+func Insert(c *fiber.Ctx) {
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return
 	}
 
-	if r.Method == "POST" {
-		// Retrieve form values from the HTTP request.
-		name := r.FormValue("name")
-		description := r.FormValue("description")
-		author := r.FormValue("author")
-		year := r.FormValue("year")
-		duration := r.FormValue("duration")
+	if c.Method() == "POST" {
+		name := c.FormValue("name")
+		description := c.FormValue("description")
+		author := c.FormValue("author")
+		year := c.FormValue("year")
+		duration := c.FormValue("duration")
 
-		// Create a new Songs struct with the form values.
 		song := models.Songs{
 			Name:        name,
 			Description: description,
@@ -128,45 +103,34 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 			Duration:    duration,
 		}
 
-		// Use GORM to create a new record in the "songs" table.
 		if err := db.Create(&song).Error; err != nil {
-			// Handle the error (e.g., log it and return an error response).
 			log.Println("Error creating record:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
 			return
 		}
 
-		// Log a success message to the console.
 		log.Println("Valores inseridos com sucesso!")
 	}
 
-	// Close the database connection.
 	db.Close()
-
-	// Redirect the user to the home page ("/").
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	c.Redirect("/", fiber.StatusMovedPermanently)
 }
 
-// Função Update, atualiza valores no banco de dados
-func Update(w http.ResponseWriter, r *http.Request) {
-	// Abre a conexão com o banco de dados usando a função: ConnectDB()
+func Update(c *fiber.Ctx) {
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return
 	}
 
-	// Verifica o METHOD do formulário passado
-	if r.Method == "POST" {
-		// Pega os campos do formulário
-		name := r.FormValue("name")
-		description := r.FormValue("description")
-		author := r.FormValue("author")
-		year := r.FormValue("year")
-		duration := r.FormValue("duration")
-		id := r.FormValue("id")
+	if c.Method() == "POST" {
+		name := c.FormValue("name")
+		description := c.FormValue("description")
+		author := c.FormValue("author")
+		year := c.FormValue("year")
+		duration := c.FormValue("duration")
+		id := c.FormValue("id")
 
-		// Create a Songs struct with the updated values
 		updatedSong := models.Songs{
 			Name:        name,
 			Description: description,
@@ -175,52 +139,35 @@ func Update(w http.ResponseWriter, r *http.Request) {
 			Duration:    duration,
 		}
 
-		// Use GORM to update the record in the "songs" table with the provided ID
 		if err := db.Model(&models.Songs{}).Where("id = ?", id).Updates(updatedSong).Error; err != nil {
-			// Handle the error (e.g., log it and return an error response).
 			log.Println("Error updating record:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
 			return
 		}
 
-		// Exibe um log com os valores digitados no formulário
 		log.Println("Valores atualizados com sucesso!")
 	}
 
-	// Encerra a conexão do ConnectDB()
 	db.Close()
-
-	// Retorna a HOME
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	c.Redirect("/", fiber.StatusMovedPermanently)
 }
 
-// Função Delete, deleta valores no banco de dados
-func Delete(w http.ResponseWriter, r *http.Request) {
-	// Abre conexão com banco de dados usando a função: ConnectDB()
+func Delete(c *fiber.Ctx) {
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return
 	}
 
-	nId := r.URL.Query().Get("id")
+	nId := c.Query("id")
 
-	// Use GORM to delete the record from the "songs" table based on the provided ID
 	if err := db.Where("id = ?", nId).Delete(&models.Songs{}).Error; err != nil {
-		// Handle the error (e.g., log it and return an error response).
 		log.Println("Error deleting record:", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
 		return
 	}
 
-	// Exibe um log indicando que o registro foi deletado com sucesso
 	log.Println("Valor deletado com sucesso")
-
-	// Encerra a conexão do ConnectDB()
 	db.Close()
-
-	// Retorna a HOME
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	c.Redirect("/", fiber.StatusMovedPermanently)
 }
-
-var tmpl = template.Must(template.ParseGlob("templates/*.html"))
