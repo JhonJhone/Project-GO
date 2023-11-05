@@ -11,6 +11,7 @@ import (
 )
 
 func Index(c *fiber.Ctx) {
+	
     db, err := database.ConnectDB()
     if err != nil {
         log.Fatalf("Failed to connect to the database: %v", err)
@@ -24,9 +25,9 @@ func Index(c *fiber.Ctx) {
         return
     }
 
-    c.Render("Index", fiber.Map{
+	c.Render("Index.html", fiber.Map{
         "Songs": songs,
-    })
+    });
 }
 
 func Show(c *fiber.Ctx) {
