@@ -3,7 +3,7 @@ package routes
 import (
 	"Proj-GO/controllers"
 
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 )
 
 func Setup(app *fiber.App){
@@ -13,7 +13,9 @@ func Setup(app *fiber.App){
 	app.Get("/new", controllers.New)
 	app.Get("/edit", controllers.Edit)
 
-	app.Get("/insert", controllers.Insert)
+	app.Post("/insert", controllers.Insert)
 	app.Get("/update", controllers.Update)
 	app.Get("/delete", controllers.Delete)
+
+	app.Post("/register", controllers.Register)
 }

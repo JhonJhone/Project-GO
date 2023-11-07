@@ -2,173 +2,184 @@ package controllers
 
 import (
 	"log"
+	"strconv"
 
-	"github.com/gofiber/fiber"
-	"github.com/jinzhu/gorm"
+	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 
 	"Proj-GO/database"
 	"Proj-GO/models"
 )
 
-func Index(c *fiber.Ctx) {
-	
-    db, err := database.ConnectDB()
-    if err != nil {
-        log.Fatalf("Failed to connect to the database: %v", err)
-        return
-    }
-    defer db.Close()
+func Index(c *fiber.Ctx) error {
+    db := database.DB
 
     var songs []models.Songs
     if err := db.Find(&songs).Error; err != nil {
         log.Fatal(err)
-        return
+        return err
     }
 
-	c.Render("Index.html", fiber.Map{
-        "Songs": songs,
-    });
+    err := c.Render("Index", songs)
+    if err != nil {
+        log.Printf("Error rendering template: %v", err)
+        return err
+    }
+
+    return nil
 }
 
-func Show(c *fiber.Ctx) {
-	db, err := database.ConnectDB()
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-		return
-	}
 
-	nId := c.Query("id")
 
-	s := &models.Songs{}
-	if err := db.First(s, nId).Error; err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			c.Status(fiber.StatusNotFound).Send("Not Found")
-		} else {
-			log.Fatal(err)
-			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
-		}
-	}
+func Show(c *fiber.Ctx) error {
+    db := database.DB
 
-	c.Render("Show", s)
-	db.Close()
+    nId := c.Query("id")
+
+    s := &models.Songs{}
+    if err := db.First(s, nId).Error; err != nil {
+        if gorm.IsRecordNotFoundError(err) {
+            c.Status(fiber.StatusNotFound).Send([]byte("Not Found"))
+            return nil
+        } else {
+            log.Fatal(err)
+            c.Status(fiber.StatusInternalServerError).Send([]byte("Internal Server Error"))
+            return err
+        }
+    }
+
+    err := c.Render("Show", s)
+    if err != nil {
+        log.Printf("Error rendering template: %v", err)
+        return err
+    }
+
+    return nil
 }
 
-func New(c *fiber.Ctx) {
-	c.Render("New", nil)
+func New(c *fiber.Ctx) error {
+    err := c.Render("New", nil)
+    if err != nil {
+        log.Printf("Error rendering template: %v", err)
+        return err
+    }
+    return nil
 }
 
-func Edit(c *fiber.Ctx) {
-	db, err := database.ConnectDB()
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-		return
-	}
+func Edit(c *fiber.Ctx) error {
+    db := database.DB
 
-	nId := c.Query("id")
+    nId := c.Query("id")
 
-	s := &models.Songs{}
-	if err := db.First(s, nId).Error; err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			c.Status(fiber.StatusNotFound).Send("Not Found")
-			db.Close()
-			return
-		} else {
-			log.Fatal(err)
-			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
-		}
-	}
+    s := &models.Songs{}
+    if err := db.First(s, nId).Error; err != nil {
+        if gorm.IsRecordNotFoundError(err) {
+            c.Status(fiber.StatusNotFound).Send([]byte("Not Found"))
+            return nil
+        } else {
+            log.Fatal(err)
+            c.Status(fiber.StatusInternalServerError).Send([]byte("Internal Server Error"))
+            return err
+        }
+    }
 
-	c.Render("Edit", s)
-	db.Close()
+    err := c.Render("Edit", s)
+    if err != nil {
+        log.Printf("Error rendering template: %v", err)
+        return err
+    }
+
+    return nil
 }
 
-func Insert(c *fiber.Ctx) {
-	db, err := database.ConnectDB()
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-		return
-	}
+func Insert(c *fiber.Ctx) error {
+    db := database.DB
 
-	if c.Method() == "POST" {
-		name := c.FormValue("name")
-		description := c.FormValue("description")
-		author := c.FormValue("author")
-		year := c.FormValue("year")
-		duration := c.FormValue("duration")
+    if c.Method() == "POST" {
+        name := c.FormValue("name")
+        description := c.FormValue("description")
+        author := c.FormValue("author")
+        year := c.FormValue("year")
+        duration := c.FormValue("duration")
+        albunsIDStr := c.FormValue("album")
 
-		song := models.Songs{
-			Name:        name,
-			Description: description,
-			Author:      author,
-			Year:        year,
-			Duration:    duration,
-		}
+        albunsID, err := strconv.Atoi(albunsIDStr)
+        if err != nil {
+            log.Println("Error parsing albuns_id:", err)
+            c.Status(fiber.StatusBadRequest).Send([]byte("Invalid Input"))
+            return err
+        }
 
-		if err := db.Create(&song).Error; err != nil {
-			log.Println("Error creating record:", err)
-			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
-			return
-		}
+        song := models.Songs{
+            Name:        name,
+            Description: description,
+            Author:      author,
+            Year:        year,
+            Duration:    duration,
+            AlbunsID:    uint(albunsID),
+        }
 
-		log.Println("Valores inseridos com sucesso!")
-	}
+        if err := db.Create(&song).Error; err != nil {
+            log.Println("Error creating record:", err)
+            c.Status(fiber.StatusInternalServerError).Send([]byte("Internal Server Error"))
+            return err
+        }
 
-	db.Close()
-	c.Redirect("/", fiber.StatusMovedPermanently)
+        log.Println("Valores inseridos com sucesso!")
+    }
+
+    c.Redirect("/", fiber.StatusMovedPermanently)
+
+    return nil
 }
 
-func Update(c *fiber.Ctx) {
-	db, err := database.ConnectDB()
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-		return
-	}
+func Update(c *fiber.Ctx) error {
+    db := database.DB
 
-	if c.Method() == "POST" {
-		name := c.FormValue("name")
-		description := c.FormValue("description")
-		author := c.FormValue("author")
-		year := c.FormValue("year")
-		duration := c.FormValue("duration")
-		id := c.FormValue("id")
+    if c.Method() == "POST" {
+        name := c.FormValue("name")
+        description := c.FormValue("description")
+        author := c.FormValue("author")
+        year := c.FormValue("year")
+        duration := c.FormValue("duration")
+        id := c.FormValue("id")
 
-		updatedSong := models.Songs{
-			Name:        name,
-			Description: description,
-			Author:      author,
-			Year:        year,
-			Duration:    duration,
-		}
+        updatedSong := models.Songs{
+            Name:        name,
+            Description: description,
+            Author:      author,
+            Year:        year,
+            Duration:    duration,
+        }
 
-		if err := db.Model(&models.Songs{}).Where("id = ?", id).Updates(updatedSong).Error; err != nil {
-			log.Println("Error updating record:", err)
-			c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
-			return
-		}
+        if err := db.Model(&models.Songs{}).Where("id = ?", id).Updates(updatedSong).Error; err != nil {
+            log.Println("Error updating record:", err)
+            c.Status(fiber.StatusInternalServerError).Send([]byte("Internal Server Error"))
+            return err
+        }
 
-		log.Println("Valores atualizados com sucesso!")
-	}
+        log.Println("Valores atualizados com sucesso!")
+    }
 
-	db.Close()
-	c.Redirect("/", fiber.StatusMovedPermanently)
+    c.Redirect("/", fiber.StatusMovedPermanently)
+
+    return nil
 }
 
-func Delete(c *fiber.Ctx) {
-	db, err := database.ConnectDB()
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-		return
-	}
+func Delete(c *fiber.Ctx) error {
+    db := database.DB
 
-	nId := c.Query("id")
+    nId := c.Query("id")
 
-	if err := db.Where("id = ?", nId).Delete(&models.Songs{}).Error; err != nil {
-		log.Println("Error deleting record:", err)
-		c.Status(fiber.StatusInternalServerError).Send("Internal Server Error")
-		return
-	}
+    if err := db.Where("id = ?", nId).Delete(&models.Songs{}).Error; err != nil {
+        log.Println("Error deleting record:", err)
+        c.Status(fiber.StatusInternalServerError).Send([]byte("Internal Server Error"))
+        return err
+    }
 
-	log.Println("Valor deletado com sucesso")
-	db.Close()
-	c.Redirect("/", fiber.StatusMovedPermanently)
+    log.Println("Valor deletado com sucesso")
+
+    c.Redirect("/", fiber.StatusMovedPermanently)
+
+    return nil
 }
