@@ -18,4 +18,5 @@ func Setup(app *fiber.App){
 	app.Get("/delete", controllers.Delete)
 
 	app.Post("/register", controllers.Register)
+	app.Post("/login", controllers.Login)
 }

@@ -7,6 +7,7 @@ import (
 	"Proj-GO/routes"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/template/html/v2"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
@@ -20,6 +21,10 @@ func main() {
     app := fiber.New(fiber.Config{
 		Views: engine,
 	})
+
+	app.Use(cors.New(cors.Config{
+		AllowCredentials: true,
+	}))
 
 	routes.Setup(app)
 
