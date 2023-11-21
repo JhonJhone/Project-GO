@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"log"
 	"strconv"
 
@@ -16,12 +17,11 @@ func Index(c *fiber.Ctx) error {
 
     var songs []models.Songs
     if err := db.Find(&songs).Error; err != nil {
-        log.Fatal(err)
+        log.Println("Error querying songs from the database:", err)
         return err
     }
 
-    err := c.Render("Index", songs)
-    if err != nil {
+    if err := c.Render("Index", songs); err != nil {
         log.Printf("Error rendering template: %v", err)
         return err
     }
@@ -38,7 +38,7 @@ func Show(c *fiber.Ctx) error {
 
     s := &models.Songs{}
     if err := db.First(s, nId).Error; err != nil {
-        if gorm.IsRecordNotFoundError(err) {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
             c.Status(fiber.StatusNotFound).Send([]byte("Not Found"))
             return nil
         } else {
@@ -73,7 +73,7 @@ func Edit(c *fiber.Ctx) error {
 
     s := &models.Songs{}
     if err := db.First(s, nId).Error; err != nil {
-        if gorm.IsRecordNotFoundError(err) {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
             c.Status(fiber.StatusNotFound).Send([]byte("Not Found"))
             return nil
         } else {
